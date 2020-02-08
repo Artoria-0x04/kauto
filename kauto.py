@@ -7,6 +7,8 @@ COPYRIGHT Dazzy Ding, Peter Zhang 2015-2016
 
 import sys
 import time
+import calendar
+import datetime
 import traceback
 
 import dfa
@@ -195,6 +197,40 @@ def auto_3_2():
 
         game.combat_result()
         request = game.combat_retreat()
+
+        game.port_open_panel_supply()
+        game.supply_current_fleet()
+
+        if battle.port_has_damaged_ship(request):
+            game.dock_open_panel_organize()
+            break
+
+def auto_22():
+    game.set_foremost()
+
+    while True:
+        request = game.dock_back_to_port()
+        if battle.port_has_damaged_ship(request):
+            break
+
+        game.port_open_panel_sortie()
+        game.sortie_select(2, 2)
+        game.sortie_confirm()
+
+        game.combat_map_loading()
+        game.combat_map_moving()
+        game.combat_compass()
+        game.combat_map_moving()
+        game.combat_formation_line()
+
+        # point B
+        game.combat_result()
+        game.combat_advance()
+
+        # point A
+        game.combat_map_moving()
+        game.combat_map_moving()
+        request = game.combat_summary()
 
         game.port_open_panel_supply()
         game.supply_current_fleet()
@@ -456,13 +492,19 @@ class AutoExpedition(BaseDFA):
         if time.time() > self.stop_time:
             print("Reach running hours limit.")
             return None
+        
+        if datetime.datetime.now().hour < 6 or datetime.datetime.now().hour > 2:
+            print('Skipping midnight to avoid possible \'201\'s')
+            LOCAL_TZ = datetime.datetime.now(datetime.timezone(datetime.timedelta(0))).astimezone().tzinfo
+            target = datetime.datetime.now().replace(tzinfo=LOCAL_TZ, hour=6, minute=0)
+            utils.random_sleep_until(calendar.timegm(target.utctimetuple()))
 
         # Clear API server to avoid affect by player's action.
         api_server.empty()
         request = game.dock_back_to_port()
-        utils.random_sleep(1)
+        utils.random_sleep(2)
         self.decks = request.body["api_deck_port"]
-        utils.random_sleep(1)
+        utils.random_sleep(2)
         return self.port
 
     def back(self):
@@ -529,14 +571,15 @@ class Auto15(dfa.AutoOnceMapDFA):
         self.map_no = 5
         self.spot_list = {
             1:  Spot(self.spot_battle,
-                     formation=game.combat_formation_abreast),
+                     formation=game.combat_formation_abreast_normal),
             2:  Spot(self.spot_battle,
-                     formation=game.combat_formation_abreast),
+                     formation=game.combat_formation_abreast_normal),
             4:  Spot(self.spot_battle, compass=True,
-                     formation=game.combat_formation_abreast),
-            5:  Spot(self.spot_avoid, compass=True),
-            10: Spot(self.spot_battle, compass=True, final=True,
-                     formation=game.combat_formation_abreast,
+                     formation=game.combat_formation_abreast_normal),
+            5:  Spot(self.spot_battle, compass=True,
+                     formation=game.combat_formation_abreast_normal),
+            11: Spot(self.spot_battle, compass=True, final=True,
+                     formation=game.combat_formation_abreast_normal,
                      enemy_animation=True),
         }
 
@@ -650,6 +693,7 @@ def auto_52c():
             game.combat_compass()
             game.combat_map_moving()
             game.combat_map_moving()
+            game.random_sleep(1)
             game.combat_formation_diamond()
 
             game.combat_battle(False)
@@ -733,6 +777,7 @@ ACTIONS = {
     "11s":  auto_1_1_single,
     "15":   Auto15,
     "15s":  auto_15_single,
+    "22":   auto_22,
     "23":   Auto23,
     "32":   auto_3_2,
     "33":   Auto33,
